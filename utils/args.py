@@ -18,7 +18,8 @@ config_parser.add_argument('-c', '--config', default='', type=str,
 
 parser = argparse.ArgumentParser(description='ImageNet Training')
 
-# Dataset and model parameters
+parser.add_argument('--mode', type=str, default='multimodal', choices=['text', 'image', 'multimodal'],
+                    help='Training mode: text, image, or multimodal')
 parser.add_argument('--datapath', type=str, default='data/', 
                     help='Path to dataset')
 parser.add_argument('--text_model', type=str, default='bert-base-uncased', 
@@ -37,8 +38,6 @@ parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_availa
                     help='Device to use for training (cuda or cpu)')
 parser.add_argument('--kwargs', nargs='*', action=ParseKwargs,
                     help='Additional keyword arguments as key=value pairs')
-
-# Optimizer parameters
 parser.add_argument('--opt', type=str, default='sgd', 
                     help='Optimizer to use (sgd, adam, etc.)')
 parser.add_argument('--momentum', type=float, default=0.9, 
