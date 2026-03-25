@@ -9,8 +9,7 @@ from transformers import BertTokenizer
 
 
 BERT_MODEL   = "bert-base-uncased"
-MAX_LENGTH   = 128
-BATCH_SIZE   = 32
+MAX_LENGTH   = 32
 
 
 # Label processing
@@ -136,34 +135,31 @@ class Dataset(Dataset):
 
 
 # Get dataLoader
-def get_dataloader(df, tokenizer=None, batch_size=BATCH_SIZE, shuffle=True, mode="multimodal"):
+def get_dataloader(df, tokenizer=None, batch_size=None, shuffle=True, mode="multimodal"):
     dataset = Dataset(df, tokenizer, mode=mode)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=2)
 
 
 # Data pipeline
-def build_data(data_dir, labels_dir, batch_size=BATCH_SIZE, mode="multimodal"):
+def build_data(data_dir, labels_dir, batch_size=None, mode="multimodal"):
     tokenizer = BertTokenizer.from_pretrained(BERT_MODEL)
 
     df = build_dataframe(data_dir, labels_dir)
     print(f"Total samples: {len(df)}")
     print(df["label"].value_counts())
 
-    # Train / val / test split 80 / 10 / 10
+    # Train / val split 80 / 20
     train_df = df.sample(frac=0.8, random_state=42)
-    temp_df  = df.drop(train_df.index)
-    val_df   = temp_df.sample(frac=0.5, random_state=42)
-    test_df  = temp_df.drop(val_df.index)
+    val_df  = df.drop(train_df.index)
 
     train_loader = get_dataloader(train_df, tokenizer, batch_size, shuffle=True, mode=mode)
     val_loader   = get_dataloader(val_df,   tokenizer, batch_size, shuffle=False, mode=mode)
-    test_loader  = get_dataloader(test_df,  tokenizer, batch_size, shuffle=False, mode=mode)
 
-    print(f"Train: {len(train_df)} | Val: {len(val_df)} | Test: {len(test_df)}")
-    return train_loader, val_loader, test_loader
+    print(f"Train: {len(train_df)} | Val: {len(val_df)}")
+    return train_loader, val_loader
 
 
 if __name__ == "__main__":
     data_dir   = "dataset/data"
     labels_dir = "dataset/label.txt"
-    train_loader, val_loader, test_loader = build_data(data_dir, labels_dir, batch_size=16, mode="multimodal")
+    train_loader, val_loader = build_data(data_dir, labels_dir, batch_size=16, mode="multimodal")

@@ -28,9 +28,9 @@ parser.add_argument('--image_model', type=str, default='resnet18',
                     help='Pretrained image model')
 parser.add_argument('--num_classes', type=int, default=3, 
                     help='Number of output classes')
-parser.add_argument('--batch_size', type=int, default=16, 
+parser.add_argument('--batch_size', type=int, default=32, 
                     help='Batch size for training')
-parser.add_argument('--num_epochs', type=int, default=5, 
+parser.add_argument('--num_epochs', type=int, default=3, 
                     help='Number of training epochs')
 parser.add_argument('--lr', type=float, default=1e-5, 
                     help='Learning rate for optimizer')
