@@ -21,7 +21,7 @@ analysis, product reviews, and customer feedback systems.
 -   Deploy a demo system for inference on new data
 -   Compare model performance using appropriate evaluation metrics
 
-------------------------------------------------------------------------
+---
 
 ## 2. Dataset
 
@@ -36,11 +36,12 @@ analysis, product reviews, and customer feedback systems.
 The dataset contains samples with both image and text information,
 labeled with sentiment classes.
 
-  Column   Type         Description
-  -------- ------------ ----------------------------
-  image    image file   Visual content
-  text     string       Caption or associated text
-  label    string       Sentiment label
+
+|  | Type | Description |
+|-------|------------|------|
+| Image | Image file | Visual content |
+| Text | String | Caption |
+| Label | int | Sentiment label |
 
 ### Sentiment Classes
 
@@ -48,7 +49,7 @@ labeled with sentiment classes.
 -   Neutral
 -   Negative
 
-------------------------------------------------------------------------
+---
 
 ## 3. System Pipeline
 
@@ -78,7 +79,7 @@ labeled with sentiment classes.
 
 -   Predict sentiment on new data
 
-------------------------------------------------------------------------
+---
 
 ## 4. Model Architecture
 
@@ -88,52 +89,50 @@ labeled with sentiment classes.
   <img src="baseline.png" width="600"/>
 </p>
 
-------------------------------------------------------------------------
+---
 
 ## 5. Results
 
 ### Evaluation Metrics
 
 -   Accuracy
--   Precision
--   Recall
 -   F1-score
 
 ### Experimental Results
 
-  Model        Accuracy   Precision   Recall   F1-score
-  ------------ ---------- ----------- -------- ----------
-  Text-only                                    
-  Image-only                                   
-  Multimodal                                                          
+| Model | Accuracy | F1-score |
+|---|----------|----------|
+| Image-only | 0.68 | 0.66 |
+| Text-only | 0.86 | 0.54 |
+| Multimodal | 0.70 | 0.68 |                                                        
 
-------------------------------------------------------------------------
+---
 
 ## 6. Setup
 
 ### Installation
 
 ``` bash
-git clone <your-repo>
-cd <project>
+git clone https://github.com/nvdat16/MultiModal-Sentiment.git
+cd MultiModal-Sentiment
 pip install -r requirements.txt
 ```
 
 ### Training
 
 ``` bash
-python train.py
+python -m src.tools.train --datapath 'dataset' --num_epoch 5 --batch_size 32 --mode '{image/text/multimodal}'
 ```
 
 ### Prediction
 
 ``` bash
-python predict.py
+python -m src.tools.predict --datapath 'dataset' --model '{checkpoint}.pth'
 ```
 
-------------------------------------------------------------------------
+---
 
 ## Author
 
--   Nguyen Van Dat
--   12423061
+-   Name: Nguyen Van Dat
+-   Email: nvdat1601@gmai.com
