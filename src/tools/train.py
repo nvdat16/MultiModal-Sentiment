@@ -148,12 +148,13 @@ def validate(model, val_loader, criterion, device, mode="text"):
             y_pred.extend(preds.cpu().numpy())
 
     acc = accuracy_score(y_true, y_pred)
+    f1 = f1_score(y_true, y_pred, average='weighted')
 
     print("\nValidation Results")
     print("-" * 30)
     print(f"Validation Loss: {total_loss/len(val_loader):.4f}")
-    print(f"Accuracy: {acc:.4f}\n")
-    print("F1-Score:", f1_score(y_true, y_pred))
+    print(f"Accuracy: {acc:.4f}")
+    print(f"F1-Score: {f1:.4f}")
     print("Classification Report")
     print(classification_report(y_true, y_pred, digits=4))
 
