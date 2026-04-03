@@ -102,8 +102,8 @@ labeled with sentiment classes.
 
 | Model | Accuracy | F1-score |
 |---|----------|----------|
-| Image-only | 0.68 | 0.66 |
-| Text-only | 0.86 | 0.54 |
+| Image-only | 0.65 | 0.62 |
+| Text-only | 0.68 | 0.66 |
 | Multimodal | 0.70 | 0.68 |                                                        
 
 ---
