@@ -37,7 +37,7 @@ The dataset contains samples with both image and text information,
 labeled with sentiment classes.
 
 
-|  | Type | Description |
+| Column | Type | Description |
 |-------|------------|------|
 | Image | Image file | Visual content |
 | Text | String | Caption |
