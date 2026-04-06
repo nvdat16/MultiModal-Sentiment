@@ -1,34 +1,63 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 import requests
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Image Prediction Bridge API")
+app = FastAPI(title="Multimodal Bridge API")
 
-# URL đích mà bạn cung cấp
-TARGET_API_URL = "https://3b21-34-105-78-109.ngrok-free.app/predict"
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.post("/upload-and-predict")
-async def predict_image(file: UploadFile = File(...)):
+TARGET_API_URL = "https://hoa-unlicentiated-pablo.ngrok-free.dev/predict"
+
+@app.get("/")
+def home():
+    return {"message": "API is running"}
+
+@app.post("/predict")
+async def predict(
+    text: str = Form(None),
+    file: UploadFile = File(None)
+):
     try:
-        print("Bắt đầu gọi api")
-        # 1. Đọc nội dung file gửi lên từ client
-        file_content = await file.read()
-        print("Xử lý ảnh")
-        # 2. Chuẩn bị file để gửi sang Ngrok API
-        files = {"file": (file.filename, file_content, file.content_type)}
-        print("Gọi lên colab")
-        # 3. Thực hiện call API ngoại vi
-        response = requests.post(TARGET_API_URL, files=files)
-        
-        # Kiểm tra lỗi nếu API ngrok không phản hồi tốt
+        files = None
+        data = {}
+
+        # text
+        if text is not None:
+            data["text"] = text
+
+        # image
+        if file is not None:
+            file_content = await file.read()
+            files = {
+                "file": (file.filename, file_content, file.content_type)
+            }
+
+        print("Forward request lên Colab...")
+
+        response = requests.post(
+            TARGET_API_URL,
+            data=data if data else None,
+            files=files,
+            timeout=60
+        )
+
         response.raise_for_status()
-        print("Done")
-        # 4. Trả kết quả về cho client của bạn
+
+        print("✅ Nhận response từ Colab")
+
         return response.json()
 
     except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi gọi API ngoại vi: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Lỗi gọi Colab API: {str(e)}")
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi hệ thống: {str(e)}")
+
 
 if __name__ == "__main__":
     import uvicorn
