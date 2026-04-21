@@ -20,9 +20,10 @@ def _get_label(batch):
 def main():
     args = parse_args()
 
-    data_dir   = f"{args.datapath}/data"
-    labels_dir = f"{args.datapath}/label.txt"
-    train_loader, val_loader = build_data(data_dir, labels_dir, batch_size=args.batch_size, mode=args.mode)
+    image_root = "dataset/Images/Images"
+    label_path = "dataset/LabeledText.xlsx"
+
+    train_loader, val_loader = build_data(image_root, label_path, batch_size=args.batch_size, mode=args.mode)
 
     model = build_model(mode=args.mode, n_classes=args.num_classes)
 
@@ -50,9 +51,9 @@ def train_model(model, train_loader, val_loader, num_epochs, device, mode):
         optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
     elif mode == "multimodal":
         optimizer = torch.optim.AdamW([
-            {"params": model.text_encoder.parameters(), "lr": 2e-5},
-            {"params": model.image_encoder.parameters(), "lr": 5e-5},
-            {"params": model.classifier.parameters(), "lr": 5e-5},
+            {"params": model.text_encoder.parameters(), "lr": 1e-5},
+            {"params": model.image_encoder.parameters(), "lr": 1e-5},
+            {"params": model.classifier.parameters(), "lr": 1e-5},
         ])
     else:
         raise ValueError("mode must be 'text', 'image', or 'multimodal'")

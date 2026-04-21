@@ -86,7 +86,7 @@ labeled with sentiment classes.
 ### Baseline Multimodal Model
 
 <p align="center">
-  <img src="baseline.png" width="600"/>
+  <img src="figs/baseline.png" width="600"/>
 </p>
 
 ---

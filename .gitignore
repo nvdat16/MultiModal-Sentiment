@@ -1,3 +1,6 @@
-/dataset
-/app/frontend
 test.py
+react_app
+main.py
+pretrained_models/Image/best_model_image.pth
+pretrained_models/MultiModal/best_model_multimodal.pth
+pretrained_models/Text/best_model_text.pth
