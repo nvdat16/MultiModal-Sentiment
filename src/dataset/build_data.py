@@ -133,16 +133,20 @@ def build_data(image_root, label_path, batch_size=16, mode="multimodal"):
 
     train_df = df.sample(frac=0.8, random_state=42)
     val_df   = df.drop(train_df.index)
+    
+    test_df = val_df.sample(frac=0.5, random_state=42)
+    val_df = val_df.drop(test_df.index)
 
     train_loader = get_dataloader(train_df, tokenizer, batch_size, shuffle=True,  mode=mode)
     val_loader   = get_dataloader(val_df,   tokenizer, batch_size, shuffle=False, mode=mode)
+    test_loader  = get_dataloader(test_df,  tokenizer, batch_size, shuffle=False, mode=mode)
 
-    return train_loader, val_loader
+    return train_loader, val_loader, test_loader
 
 
 if __name__ == "__main__":
     image_root = "dataset/Images/Images"
     label_path = "dataset/LabeledText.xlsx"
 
-    train_loader, val_loader = build_data(image_root, label_path, batch_size=16, mode='text')
+    train_loader, val_loader, test_loader = build_data(image_root, label_path, batch_size=16, mode='text')
     print('Load dataset: Done')

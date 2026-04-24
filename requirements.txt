@@ -6,3 +6,12 @@ transformers
 scikit-learn
 PyYAML
 tqdm
+fastapi
+uvicorn
+python-multipart
+requests
+SQLAlchemy
+PyMySQL
+passlib[bcrypt]
+python-jose[cryptography]
+pydantic
