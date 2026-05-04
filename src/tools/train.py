@@ -23,9 +23,20 @@ def main():
     image_root = "dataset/Images/Images"
     label_path = "dataset/LabeledText.xlsx"
 
-    train_loader, val_loader = build_data(image_root, label_path, batch_size=args.batch_size, mode=args.mode)
+    train_loader, val_loader, test_loader = build_data(
+        image_root,
+        label_path,
+        batch_size=args.batch_size,
+        mode=args.mode,
+        text_model_name=args.text_model,
+    )
 
-    model = build_model(mode=args.mode, n_classes=args.num_classes)
+    model = build_model(
+        mode=args.mode,
+        n_classes=args.num_classes,
+        text_model_name=args.text_model,
+        image_model_name=args.image_model,
+    )
 
     train_model(model, train_loader, val_loader, num_epochs=args.num_epochs, device=device, mode=args.mode)
 

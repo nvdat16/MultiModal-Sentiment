@@ -1,0 +1,7 @@
+mode: multimodal
+text_model: roberta-base
+image_model: efficientnet_b0
+num_classes: 3
+batch_size: 32
+num_epochs: 3
+lr: 1e-5

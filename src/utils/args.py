@@ -23,9 +23,9 @@ parser.add_argument('--mode', type=str, default='multimodal', choices=['text', '
 parser.add_argument('--datapath', type=str, default='data/', 
                     help='Path to dataset')
 parser.add_argument('--text_model', type=str, default='bert-base-uncased', 
-                    help='Pretrained text model')
+                    help='Pretrained text model name, e.g. bert-base-uncased or roberta-base')
 parser.add_argument('--image_model', type=str, default='resnet18', 
-                    help='Pretrained image model')
+                    help='Pretrained image model name, e.g. resnet18, mobilenetv1, efficientnet_b0')
 parser.add_argument('--num_classes', type=int, default=3, 
                     help='Number of output classes')
 parser.add_argument('--batch_size', type=int, default=32, 

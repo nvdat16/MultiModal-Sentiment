@@ -1,0 +1,7 @@
+mode: image
+text_model: bert-base-uncased
+image_model: mobilenetv1
+num_classes: 3
+batch_size: 32
+num_epochs: 3
+lr: 1e-4

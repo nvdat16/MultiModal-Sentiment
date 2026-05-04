@@ -1,0 +1,7 @@
+mode: text
+text_model: roberta-base
+image_model: resnet18
+num_classes: 3
+batch_size: 32
+num_epochs: 3
+lr: 2e-5
