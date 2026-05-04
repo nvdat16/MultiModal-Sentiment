@@ -26,6 +26,10 @@ parser.add_argument('--text_model', type=str, default='bert-base-uncased',
                     help='Pretrained text model name, e.g. bert-base-uncased or roberta-base')
 parser.add_argument('--image_model', type=str, default='resnet18', 
                     help='Pretrained image model name, e.g. resnet18, mobilenetv1, efficientnet_b0')
+parser.add_argument('--fusion_type', type=str, default='concat', choices=['concat', 'cross_attention'],
+                    help='Fusion type for multimodal model')
+parser.add_argument('--random_seed', type=int, default=42,
+                    help='Random seed for reproducibility')
 parser.add_argument('--num_classes', type=int, default=3, 
                     help='Number of output classes')
 parser.add_argument('--batch_size', type=int, default=32, 
