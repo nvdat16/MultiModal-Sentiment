@@ -2,7 +2,10 @@ import torch
 from .model import TextClassifier, ImageClassifier, MultiModalClassifier
 
 
-def build_model(mode, n_classes, text_model_name="bert-base-uncased", image_model_name="resnet18"):
+def build_model(mode, n_classes, *args, **kwargs):
+    text_model_name = kwargs.get("text_model_name", kwargs.get("text_model", "bert-base-uncased"))
+    image_model_name = kwargs.get("image_model_name", kwargs.get("image_model", "resnet18"))
+
     if mode == "text":
         return TextClassifier(n_classes, model_name=text_model_name)
     elif mode == "image":

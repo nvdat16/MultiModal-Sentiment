@@ -4,10 +4,10 @@ import pandas as pd
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-from transformers import BertTokenizer
+from transformers import AutoTokenizer
 
 
-BERT_MODEL = "bert-base-uncased"
+DEFAULT_TEXT_MODEL = "bert-base-uncased"
 MAX_LENGTH = 32
 
 
@@ -123,8 +123,8 @@ def get_dataloader(df, tokenizer, batch_size=16, shuffle=True, mode="multimodal"
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=2)
 
 
-def build_data(image_root, label_path, batch_size=16, mode="multimodal"):
-    tokenizer = BertTokenizer.from_pretrained(BERT_MODEL)
+def build_data(image_root, label_path, batch_size=16, mode="multimodal", text_model_name=DEFAULT_TEXT_MODEL):
+    tokenizer = AutoTokenizer.from_pretrained(text_model_name)
 
     df = build_dataframe(image_root, label_path)
 
@@ -148,5 +148,11 @@ if __name__ == "__main__":
     image_root = "dataset/Images/Images"
     label_path = "dataset/LabeledText.xlsx"
 
-    train_loader, val_loader, test_loader = build_data(image_root, label_path, batch_size=16, mode='text')
+    train_loader, val_loader, test_loader = build_data(
+        image_root,
+        label_path,
+        batch_size=16,
+        mode='text',
+        text_model_name='roberta-base'
+    )
     print('Load dataset: Done')

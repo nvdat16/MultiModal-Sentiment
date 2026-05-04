@@ -7,7 +7,7 @@ from ..dataset import build_data
 from ..utils.args import parse_args
 from ..model import build_model
 
-from sklearn.metrics import accuracy_score, classification_report, f1_score
+from sklearn.metrics import accuracy_score, classification_report, f1_score, precision_score, recall_score
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -38,7 +38,18 @@ def main():
         image_model_name=args.image_model,
     )
 
-    train_model(model, train_loader, val_loader, num_epochs=args.num_epochs, device=device, mode=args.mode)
+    best_model = train_model(
+        model,
+        train_loader,
+        val_loader,
+        num_epochs=args.num_epochs,
+        device=device,
+        mode=args.mode,
+    )
+
+    if best_model is not None:
+        print("\nEvaluating best model on test set...")
+        evaluate(best_model, test_loader, device, args.mode)
 
 
 class FocalLoss(nn.Module):
@@ -72,6 +83,7 @@ def train_model(model, train_loader, val_loader, num_epochs, device, mode):
     model.to(device)
 
     best_acc = 0
+    best_model_state = None
 
     for epoch in range(num_epochs):
         model.train()
@@ -113,13 +125,19 @@ def train_model(model, train_loader, val_loader, num_epochs, device, mode):
 
         if acc > best_acc:
             best_acc = acc
+            best_model_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
             torch.save(model.state_dict(), f"best_model_{mode}.pth")
             print(f"Saved best model (acc={best_acc:.4f})")
 
         print('-'*30)
 
+    if best_model_state is not None:
+        model.load_state_dict(best_model_state)
 
-def validate(model, val_loader, criterion, device, mode="text"):
+    return model
+
+
+def validate(model, val_loader, criterion, device, mode="text", split_name="Validation"):
     model.eval()
 
     y_true = []
@@ -127,7 +145,7 @@ def validate(model, val_loader, criterion, device, mode="text"):
     total_loss = 0
 
     with torch.no_grad():
-        for batch in tqdm.tqdm(val_loader, desc="Validating"):
+        for batch in tqdm.tqdm(val_loader, desc=split_name):
             if mode == "text":
                 input_ids = batch["input_ids"].to(device)
                 attention_mask = batch["attention_mask"].to(device)
@@ -160,17 +178,26 @@ def validate(model, val_loader, criterion, device, mode="text"):
             y_pred.extend(preds.cpu().numpy())
 
     acc = accuracy_score(y_true, y_pred)
-    f1 = f1_score(y_true, y_pred, average='weighted')
+    precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
+    recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
+    f1 = f1_score(y_true, y_pred, average='weighted', zero_division=0)
 
-    print("\nValidation Results")
+    print(f"\n{split_name} Results")
     print("-" * 30)
-    print(f"Validation Loss: {total_loss/len(val_loader):.4f}")
+    print(f"Loss: {total_loss/len(val_loader):.4f}")
     print(f"Accuracy: {acc:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall: {recall:.4f}")
     print(f"F1-Score: {f1:.4f}")
     print("Classification Report")
-    print(classification_report(y_true, y_pred, digits=4))
+    print(classification_report(y_true, y_pred, digits=4, zero_division=0))
 
-    return acc 
+    return acc, precision, recall, f1
+
+
+def evaluate(model, test_loader, device, mode):
+    criterion = FocalLoss(gamma=2)
+    return validate(model, test_loader, criterion, device, mode, split_name="Test")
 
 if __name__ == "__main__":
     main()
