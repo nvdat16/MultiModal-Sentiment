@@ -1,158 +1,318 @@
 import os
 import re
+import unicodedata
+from collections import Counter
+
 import pandas as pd
-from PIL import Image
-from torch.utils.data import Dataset, DataLoader
+from PIL import Image, UnidentifiedImageError
+from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, Dataset as TorchDataset
 from torchvision import transforms
 from transformers import AutoTokenizer
 
 
 DEFAULT_TEXT_MODEL = "bert-base-uncased"
-MAX_LENGTH = 32
+MAX_LENGTH = 64
+IMAGE_SIZE = 224
+LABEL_MAP = {"negative": 0, "neutral": 1, "positive": 2}
 
 
-# Text processing 
 def clean_text(text):
-    text = re.sub(r"http\S+", "", str(text))
-    text = re.sub(r"<.*?>", "", text)
+    if pd.isna(text):
+        return ""
+
+    text = str(text)
+    text = unicodedata.normalize("NFKC", text)
+    text = text.lower().strip()
+
+    text = re.sub(r"http\S+|www\.\S+", " ", text)
+    text = re.sub(r"<.*?>", " ", text)
+    text = re.sub(r"@\w+", " ", text)
+    text = re.sub(r"#", " ", text)
+    text = re.sub(r"[^\w\s.,!?;:'\-]", " ", text)
     text = re.sub(r"\s+", " ", text)
+
     return text.strip()
 
 
-# Label + Text
-def load_labels_excel(path):
-    df = pd.read_excel(path, sheet_name="final label")
-    df.columns = [c.lower().strip() for c in df.columns]
+def load_texts_from_folder(data_dir):
+    if not os.path.isdir(data_dir):
+        raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
-    df["id"] = df["file name"].str.extract(r"(\d+)").astype(int)
-    df["text"] = df["caption"].astype(str).apply(clean_text)
-    df["label"] = df["label"].str.lower().str.strip()
-
-    return df[["id", "text", "label"]]
-
-
-# Image processing 
-def load_images_from_folder(image_root):
     records = []
-
-    for label in os.listdir(image_root):
-        folder = os.path.join(image_root, label)
-
-        if not os.path.isdir(folder):
+    for file in sorted(os.listdir(data_dir)):
+        if not file.lower().endswith(".txt"):
             continue
 
-        for file in os.listdir(folder):
-            if file.lower().endswith((".jpg", ".png", ".jpeg")):
-                id_ = int(os.path.splitext(file)[0])
-                records.append({
-                    "id": id_,
-                    "image_path": os.path.join(folder, file)
-                })
+        txt_path = os.path.join(data_dir, file)
+        file_id = os.path.splitext(file)[0]
+        if not file_id.isdigit():
+            continue
+
+        with open(txt_path, "r", encoding="utf-8") as f:
+            content = f.read().strip()
+
+        cleaned = clean_text(content)
+        if cleaned:
+            records.append({"id": int(file_id), "text": cleaned})
+
+    if not records:
+        raise ValueError(f"No text files found under: {data_dir}")
 
     return pd.DataFrame(records)
 
 
-def build_dataframe(image_root, label_path):
-    df_img = load_images_from_folder(image_root)
-    df_lbl = load_labels_excel(label_path)
+def load_images_from_folder(data_dir):
+    if not os.path.isdir(data_dir):
+        raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
-    df = df_img.merge(df_lbl, on="id")
-    return df
+    records = []
+    for file in sorted(os.listdir(data_dir)):
+        if not file.lower().endswith((".jpg", ".jpeg", ".png", ".bmp", ".webp")):
+            continue
+
+        file_id = os.path.splitext(file)[0]
+        if not file_id.isdigit():
+            continue
+
+        records.append({"id": int(file_id), "image_path": os.path.join(data_dir, file)})
+
+    if not records:
+        raise ValueError(f"No image files found under: {data_dir}")
+
+    return pd.DataFrame(records)
 
 
-class Dataset(Dataset):
-    def __init__(self, df, tokenizer, max_length=MAX_LENGTH, mode="multimodal"):
+def _get_majority(values):
+    counts = Counter(v for v in values if pd.notna(v) and str(v).strip())
+    if not counts:
+        return None
+
+    value, count = counts.most_common(1)[0]
+    return value if count > 1 else None
+
+
+def load_labels_txt(label_path):
+    if not os.path.isfile(label_path):
+        raise FileNotFoundError(f"Label file not found: {label_path}")
+
+    df = pd.read_csv(label_path, sep="\t")
+    df.columns = [c.lower().strip() for c in df.columns]
+
+    id_col = None
+    for candidate in ["id", "file name", "filename", "file_name"]:
+        if candidate in df.columns:
+            id_col = candidate
+            break
+
+    if id_col is None:
+        raise ValueError("Missing ID column in label file.")
+
+    if id_col != "id":
+        df["id"] = df[id_col].astype(str).str.extract(r"(\d+)")[0]
+    else:
+        df["id"] = df["id"].astype(str).str.extract(r"(\d+)")[0]
+
+    df = df.dropna(subset=["id"]).copy()
+    df["id"] = df["id"].astype(int)
+
+    multimodal_cols = [c for c in df.columns if "text,image" in c]
+    if not multimodal_cols:
+        raise ValueError("No multimodal label columns found in label file.")
+
+    def get_majority_multimodal(row):
+        raw_labels = [row[col] for col in multimodal_cols]
+
+        texts = []
+        images = []
+        for item in raw_labels:
+            if pd.isna(item):
+                continue
+            item = str(item).strip()
+            if "," not in item:
+                continue
+            t, i = item.split(",", 1)
+            texts.append(t.strip().lower())
+            images.append(i.strip().lower())
+
+        final_text = _get_majority(texts)
+        final_image = _get_majority(images)
+
+        if final_text and final_image and final_text == final_image:
+            return final_text
+        return "invalid"
+
+    df["label"] = df.apply(get_majority_multimodal, axis=1)
+    df = df[df["label"].isin(LABEL_MAP)].copy()
+
+    return df[["id", "label"]].drop_duplicates(subset=["id"], keep="first")
+
+
+def build_dataframe(data_dir, label_path):
+    df_text = load_texts_from_folder(data_dir)
+    df_img = load_images_from_folder(data_dir)
+    df_lbl = load_labels_txt(label_path)
+
+    df = df_text.merge(df_img, on="id", how="inner")
+    df = df.merge(df_lbl, on="id", how="inner")
+
+    if df.empty:
+        raise ValueError("No matched samples after merging text, images, and labels.")
+
+    return df.drop_duplicates(subset=["id"], keep="first").reset_index(drop=True)
+
+
+class SentimentDataset(TorchDataset):
+    def __init__(self, df, tokenizer, max_length=MAX_LENGTH, mode="multimodal", train=False):
         self.df = df.reset_index(drop=True)
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.mode = mode
+        self.train = train
 
-        self.transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406],
-                                 [0.229, 0.224, 0.225])
-        ])
-        self.label_map = {"negative": 0, "neutral": 1, "positive": 2}
+        self.train_transform = transforms.Compose(
+            [
+                transforms.RandomResizedCrop(IMAGE_SIZE, scale=(0.85, 1.0)),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.02),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            ]
+        )
+        self.eval_transform = transforms.Compose(
+            [
+                transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            ]
+        )
 
     def __len__(self):
         return len(self.df)
 
-    def __getitem__(self, idx):
-        row   = self.df.iloc[idx]
-        label = self.label_map[row["label"]]
+    def _image_transform(self):
+        return self.train_transform if self.train and self.mode in ("image", "multimodal") else self.eval_transform
 
-        # TEXT fields
+    def __getitem__(self, idx):
+        row = self.df.iloc[idx]
+        label_name = str(row["label"]).lower().strip()
+        if label_name not in LABEL_MAP:
+            raise ValueError(f"Unsupported label: {row['label']}")
+        label = LABEL_MAP[label_name]
+
+        enc = None
+        image = None
+
         if self.mode in ("text", "multimodal"):
             enc = self.tokenizer(
-                row["text"],
+                clean_text(row["text"]),
                 max_length=self.max_length,
                 padding="max_length",
                 truncation=True,
-                return_tensors="pt"
+                return_tensors="pt",
             )
 
-        # IMAGE fields
         if self.mode in ("image", "multimodal"):
-            image = Image.open(row["image_path"]).convert("RGB")
-            image = self.transform(image)
+            try:
+                image = Image.open(row["image_path"]).convert("RGB")
+            except (FileNotFoundError, UnidentifiedImageError, OSError) as exc:
+                raise ValueError(f"Failed to load image: {row['image_path']}") from exc
+            image = self._image_transform()(image)
 
-        # Trả về đúng fields theo mode
         if self.mode == "text":
             return {
                 "input_ids": enc["input_ids"].squeeze(0),
                 "attention_mask": enc["attention_mask"].squeeze(0),
-                "label": label
+                "label": label,
             }
-        elif self.mode == "image":
-            return {
-                "image": image,
-                "label": label
-            }
-        else:  # multimodal
-            return {
-                "input_ids": enc["input_ids"].squeeze(0),
-                "attention_mask": enc["attention_mask"].squeeze(0),
-                "image": image,
-                "label": label
-            }
+        if self.mode == "image":
+            return {"image": image, "label": label}
+
+        return {
+            "input_ids": enc["input_ids"].squeeze(0),
+            "attention_mask": enc["attention_mask"].squeeze(0),
+            "image": image,
+            "label": label,
+        }
 
 
-def get_dataloader(df, tokenizer, batch_size=16, shuffle=True, mode="multimodal"):
-    dataset = Dataset(df, tokenizer, mode=mode)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=2)
+def get_dataloader(df, tokenizer, batch_size=16, shuffle=True, mode="multimodal", max_length=MAX_LENGTH, train=False):
+    dataset = SentimentDataset(df, tokenizer, max_length=max_length, mode=mode, train=train)
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=2,
+        pin_memory=False,
+    )
 
 
-def build_data(image_root, label_path, batch_size=16, mode="multimodal", text_model_name=DEFAULT_TEXT_MODEL):
+def _can_stratify(series):
+    counts = series.value_counts()
+    return len(counts) > 1 and counts.min() >= 2
+
+
+def build_data(
+    data_dir,
+    label_path,
+    batch_size=16,
+    mode="multimodal",
+    text_model_name=DEFAULT_TEXT_MODEL,
+    max_length=MAX_LENGTH,
+    val_size=0.15,
+    test_size=0.15,
+    random_state=42,
+):
+    if mode not in {"text", "image", "multimodal"}:
+        raise ValueError("mode must be 'text', 'image', or 'multimodal'")
+
     tokenizer = AutoTokenizer.from_pretrained(text_model_name)
-
-    df = build_dataframe(image_root, label_path)
+    df = build_dataframe(data_dir, label_path)
 
     print(f"Total samples: {len(df)}")
     print(df["label"].value_counts())
 
-    train_df = df.sample(frac=0.8, random_state=42)
-    val_df   = df.drop(train_df.index)
-    
-    test_df = val_df.sample(frac=0.5, random_state=42)
-    val_df = val_df.drop(test_df.index)
+    temp_size = val_size + test_size
+    if temp_size <= 0 or temp_size >= 1:
+        raise ValueError("val_size + test_size must be between 0 and 1")
 
-    train_loader = get_dataloader(train_df, tokenizer, batch_size, shuffle=True,  mode=mode)
-    val_loader   = get_dataloader(val_df,   tokenizer, batch_size, shuffle=False, mode=mode)
-    test_loader  = get_dataloader(test_df,  tokenizer, batch_size, shuffle=False, mode=mode)
+    stratify = df["label"] if _can_stratify(df["label"]) else None
+    train_df, temp_df = train_test_split(
+        df,
+        test_size=temp_size,
+        random_state=random_state,
+        shuffle=True,
+        stratify=stratify,
+    )
+
+    temp_stratify = temp_df["label"] if _can_stratify(temp_df["label"]) else None
+    relative_test_size = test_size / temp_size
+    val_df, test_df = train_test_split(
+        temp_df,
+        test_size=relative_test_size,
+        random_state=random_state,
+        shuffle=True,
+        stratify=temp_stratify,
+    )
+
+    print(f"Train/Val/Test: {len(train_df)}/{len(val_df)}/{len(test_df)}")
+
+    train_loader = get_dataloader(train_df, tokenizer, batch_size, shuffle=True, mode=mode, max_length=max_length, train=True)
+    val_loader = get_dataloader(val_df, tokenizer, batch_size, shuffle=False, mode=mode, max_length=max_length, train=False)
+    test_loader = get_dataloader(test_df, tokenizer, batch_size, shuffle=False, mode=mode, max_length=max_length, train=False)
 
     return train_loader, val_loader, test_loader
 
 
 if __name__ == "__main__":
-    image_root = "dataset/Images/Images"
-    label_path = "dataset/LabeledText.xlsx"
+    data_dir = "dataset/MVSA/data"
+    label_path = "dataset/MVSA/labelResultAll.txt"
 
     train_loader, val_loader, test_loader = build_data(
-        image_root,
+        data_dir,
         label_path,
         batch_size=16,
-        mode='text',
-        text_model_name='roberta-base'
+        mode="text",
+        text_model_name="roberta-base",
     )
-    print('Load dataset: Done')
+    print("Load dataset: Done")

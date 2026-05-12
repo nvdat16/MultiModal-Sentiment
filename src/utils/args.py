@@ -37,7 +37,13 @@ parser.add_argument('--batch_size', type=int, default=32,
 parser.add_argument('--num_epochs', type=int, default=3, 
                     help='Number of training epochs')
 parser.add_argument('--lr', type=float, default=1e-5, 
-                    help='Learning rate for optimizer')
+                    help='Base learning rate for optimizer')
+parser.add_argument('--text_lr', type=float, default=None, 
+                    help='Learning rate for text encoder branch in multimodal mode')
+parser.add_argument('--image_lr', type=float, default=None, 
+                    help='Learning rate for image encoder branch in multimodal mode')
+parser.add_argument('--fusion_lr', type=float, default=None, 
+                    help='Learning rate for fusion/classifier branch in multimodal mode')
 parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu', 
                     help='Device to use for training (cuda or cpu)')
 parser.add_argument('--kwargs', nargs='*', action=ParseKwargs,
