@@ -30,12 +30,12 @@ class TextEncoder(nn.Module):
     def __init__(self, model_name="bert-base-uncased", dropout=0.3):
         super().__init__()
         model_name = TEXT_MODEL_ALIASES.get(model_name, model_name)
-        self.model = AutoModel.from_pretrained(model_name)
+        self.bert = AutoModel.from_pretrained(model_name)
         self.dropout = nn.Dropout(dropout)
-        self.output_dim = self.model.config.hidden_size
+        self.output_dim = self.bert.config.hidden_size
 
     def forward(self, input_ids, attention_mask, return_sequence=False):
-        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
+        outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
         sequence = self.dropout(outputs.last_hidden_state)
         if return_sequence:
             return sequence

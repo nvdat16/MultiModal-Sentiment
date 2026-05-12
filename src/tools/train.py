@@ -19,6 +19,86 @@ def _get_label(batch):
     return batch.get("label", batch.get("labels"))
 
 
+def count_parameters(model):
+    total_params = sum(param.numel() for param in model.parameters())
+    trainable_params = sum(param.numel() for param in model.parameters() if param.requires_grad)
+    return total_params, trainable_params
+
+
+def _sync_device(device):
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+
+
+def get_sample_batch(data_loader):
+    return next(iter(data_loader))
+
+
+def print_model_summary(model, sample_batch, mode, device):
+    total_params, trainable_params = count_parameters(model)
+    print("\nModel Summary")
+    print("=" * 60)
+    print(f"Mode: {mode}")
+    print(f"Total parameters: {total_params:,}")
+    print(f"Trainable parameters: {trainable_params:,}")
+    print("=" * 60)
+
+
+def benchmark_inference_speed(model, sample_batch, mode, device, warmup_steps=10, run_steps=50):
+    model = model.to(device)
+    model.eval()
+
+    def run_inference():
+        with torch.inference_mode():
+            if mode == "text":
+                return model(
+                    input_ids=sample_batch["input_ids"].to(device),
+                    attention_mask=sample_batch["attention_mask"].to(device),
+                )
+            if mode == "image":
+                return model(sample_batch["image"].to(device))
+            if mode == "multimodal":
+                return model(
+                    input_ids=sample_batch["input_ids"].to(device),
+                    attention_mask=sample_batch["attention_mask"].to(device),
+                    images=sample_batch["image"].to(device),
+                )
+            raise ValueError("mode must be 'text', 'image', or 'multimodal'")
+
+    for _ in range(warmup_steps):
+        run_inference()
+    _sync_device(device)
+
+    if device.type == "cuda":
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        start.record()
+        for _ in range(run_steps):
+            run_inference()
+        end.record()
+        torch.cuda.synchronize(device)
+        total_ms = start.elapsed_time(end)
+    else:
+        import time
+
+        start_time = time.perf_counter()
+        for _ in range(run_steps):
+            run_inference()
+        total_ms = (time.perf_counter() - start_time) * 1000
+
+    batch_size = sample_batch["image"].size(0) if mode != "text" else sample_batch["input_ids"].size(0)
+    avg_ms_per_batch = total_ms / run_steps
+    avg_ms_per_sample = avg_ms_per_batch / batch_size
+    samples_per_second = 1000.0 / avg_ms_per_sample if avg_ms_per_sample > 0 else float("inf")
+
+    print("\nInference Speed")
+    print("=" * 60)
+    print(f"Average latency: {avg_ms_per_batch:.2f} ms/batch")
+    print(f"Average latency: {avg_ms_per_sample:.2f} ms/sample")
+    print(f"Throughput: {samples_per_second:.2f} samples/sec")
+    print("=" * 60)
+
+
 def set_random_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
@@ -51,6 +131,9 @@ def main():
         fusion_type=args.fusion_type,
     )
 
+    sample_batch = get_sample_batch(train_loader)
+    print_model_summary(model, sample_batch, args.mode, device)
+
     best_model = train_model(
         model,
         train_loader,
@@ -62,6 +145,7 @@ def main():
 
     if best_model is not None:
         print("\nEvaluating best model on test set...")
+        benchmark_inference_speed(best_model, sample_batch, args.mode, device)
         evaluate(best_model, test_loader, device, args.mode)
 
 
