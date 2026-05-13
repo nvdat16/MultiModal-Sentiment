@@ -35,7 +35,7 @@ def clean_text(text):
     return text.strip()
 
 
-def load_texts_from_folder(data_dir):
+def load_texts_from_folder(data_dir, preprocess=True):
     if not os.path.isdir(data_dir):
         raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
@@ -52,9 +52,9 @@ def load_texts_from_folder(data_dir):
         with open(txt_path, "r", encoding="utf-8") as f:
             content = f.read().strip()
 
-        cleaned = clean_text(content)
-        if cleaned:
-            records.append({"id": int(file_id), "text": cleaned})
+        text = clean_text(content) if preprocess else content
+        if text:
+            records.append({"id": int(file_id), "text": text})
 
     if not records:
         raise ValueError(f"No text files found under: {data_dir}")
@@ -148,8 +148,8 @@ def load_labels_txt(label_path):
     return df[["id", "label"]].drop_duplicates(subset=["id"], keep="first")
 
 
-def build_dataframe(data_dir, label_path):
-    df_text = load_texts_from_folder(data_dir)
+def build_dataframe(data_dir, label_path, preprocess=True):
+    df_text = load_texts_from_folder(data_dir, preprocess=preprocess)
     df_img = load_images_from_folder(data_dir)
     df_lbl = load_labels_txt(label_path)
 
@@ -163,27 +163,25 @@ def build_dataframe(data_dir, label_path):
 
 
 class SentimentDataset(TorchDataset):
-    def __init__(self, df, tokenizer, max_length=MAX_LENGTH, mode="multimodal", train=False):
+    def __init__(self, df, tokenizer, max_length=MAX_LENGTH, mode="multimodal", train=False, preprocess=True):
         self.df = df.reset_index(drop=True)
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.mode = mode
         self.train = train
+        self.preprocess = preprocess
 
-        self.train_transform = transforms.Compose(
-            [
-                transforms.RandomResizedCrop(IMAGE_SIZE, scale=(0.85, 1.0)),
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.02),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-            ]
-        )
-        self.eval_transform = transforms.Compose(
+        self.image_transform = transforms.Compose(
             [
                 transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
                 transforms.ToTensor(),
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            ]
+        )
+        self.raw_image_transform = transforms.Compose(
+            [
+                transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+                transforms.ToTensor(),
             ]
         )
 
@@ -191,7 +189,7 @@ class SentimentDataset(TorchDataset):
         return len(self.df)
 
     def _image_transform(self):
-        return self.train_transform if self.train and self.mode in ("image", "multimodal") else self.eval_transform
+        return self.image_transform if self.preprocess else self.raw_image_transform
 
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
@@ -236,8 +234,24 @@ class SentimentDataset(TorchDataset):
         }
 
 
-def get_dataloader(df, tokenizer, batch_size=16, shuffle=True, mode="multimodal", max_length=MAX_LENGTH, train=False):
-    dataset = SentimentDataset(df, tokenizer, max_length=max_length, mode=mode, train=train)
+def get_dataloader(
+    df,
+    tokenizer,
+    batch_size=16,
+    shuffle=True,
+    mode="multimodal",
+    max_length=MAX_LENGTH,
+    train=False,
+    preprocess=True,
+):
+    dataset = SentimentDataset(
+        df,
+        tokenizer,
+        max_length=max_length,
+        mode=mode,
+        train=train,
+        preprocess=preprocess,
+    )
     return DataLoader(
         dataset,
         batch_size=batch_size,
@@ -262,12 +276,13 @@ def build_data(
     val_size=0.15,
     test_size=0.15,
     random_state=42,
+    preprocess=True,
 ):
     if mode not in {"text", "image", "multimodal"}:
         raise ValueError("mode must be 'text', 'image', or 'multimodal'")
 
     tokenizer = AutoTokenizer.from_pretrained(text_model_name)
-    df = build_dataframe(data_dir, label_path)
+    df = build_dataframe(data_dir, label_path, preprocess=preprocess)
 
     print(f"Total samples: {len(df)}")
     print(df["label"].value_counts())
@@ -297,9 +312,36 @@ def build_data(
 
     print(f"Train/Val/Test: {len(train_df)}/{len(val_df)}/{len(test_df)}")
 
-    train_loader = get_dataloader(train_df, tokenizer, batch_size, shuffle=True, mode=mode, max_length=max_length, train=True)
-    val_loader = get_dataloader(val_df, tokenizer, batch_size, shuffle=False, mode=mode, max_length=max_length, train=False)
-    test_loader = get_dataloader(test_df, tokenizer, batch_size, shuffle=False, mode=mode, max_length=max_length, train=False)
+    train_loader = get_dataloader(
+        train_df,
+        tokenizer,
+        batch_size,
+        shuffle=True,
+        mode=mode,
+        max_length=max_length,
+        train=True,
+        preprocess=preprocess,
+    )
+    val_loader = get_dataloader(
+        val_df,
+        tokenizer,
+        batch_size,
+        shuffle=False,
+        mode=mode,
+        max_length=max_length,
+        train=False,
+        preprocess=preprocess,
+    )
+    test_loader = get_dataloader(
+        test_df,
+        tokenizer,
+        batch_size,
+        shuffle=False,
+        mode=mode,
+        max_length=max_length,
+        train=False,
+        preprocess=preprocess,
+    )
 
     return train_loader, val_loader, test_loader
 
@@ -314,5 +356,6 @@ if __name__ == "__main__":
         batch_size=16,
         mode="text",
         text_model_name="roberta-base",
+        preprocess=True,
     )
     print("Load dataset: Done")
