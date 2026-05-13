@@ -180,6 +180,26 @@ def _get_multimodal_param_groups(model, base_lr, text_lr=None, image_lr=None, fu
     return groups
 
 
+def _load_checkpoint_matching(model, checkpoint_path, device):
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+        checkpoint = checkpoint["state_dict"]
+
+    model_state = model.state_dict()
+    filtered = {}
+    skipped = []
+
+    for key, value in checkpoint.items():
+        if key in model_state and model_state[key].shape == value.shape:
+            filtered[key] = value
+        else:
+            skipped.append(key)
+
+    model_state.update(filtered)
+    model.load_state_dict(model_state)
+    return skipped
+
+
 def train_model(
     model,
     train_loader,

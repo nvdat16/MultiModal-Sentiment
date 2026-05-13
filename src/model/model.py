@@ -12,8 +12,10 @@ TEXT_MODEL_ALIASES = {
 IMAGE_MODEL_ALIASES = {
     "resnet18": "resnet18",
     "resnet34": "resnet34",
-    "mobilenet_v1": "mobilenet_v2",
+    "mobilenetv1": "mobilenet_v2",
     "mobilenet_v2": "mobilenet_v2",
+    "mobilenet_v1": "mobilenet_v2",
+    "mobilenetv2": "mobilenet_v2",
     "efficientnet_b0": "efficientnet_b0",
 }
 
@@ -172,10 +174,3 @@ class CrossAttentionMultiModalClassifier(nn.Module):
         image_tokens = self.image_encoder(images, return_sequence=True)
         fused = self.fusion(text_tokens, image_tokens)
         return self.classifier(fused)
-
-
-# Backward-compatible aliases
-BERTEncoder = TextEncoder
-ResNetEncoder = ImageEncoder
-BERTClassifier = TextClassifier
-ResNetClassifier = ImageClassifier
