@@ -1,5 +1,6 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
+from app.models.comment import Comment
 from app.models.post import Post
 
 
@@ -28,5 +29,15 @@ def create_post(
     return post
 
 
+def get_post_by_id(db: Session, post_id: int) -> Post | None:
+    return db.query(Post).filter(Post.id == post_id).first()
+
+
 def get_recent_posts(db: Session, limit: int = 50) -> list[Post]:
-    return db.query(Post).order_by(Post.created_at.desc()).limit(limit).all()
+    return (
+        db.query(Post)
+        .options(selectinload(Post.user), selectinload(Post.comments).selectinload(Comment.user))
+        .order_by(Post.created_at.desc())
+        .limit(limit)
+        .all()
+    )

@@ -1,16 +1,15 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from app.schemas.comment import CommentOut
 from app.schemas.user import UserOut
 
 
-class PostOut(BaseModel):
+class CommentOut(BaseModel):
     id: int
-    content: Optional[str] = None
-    image_url: Optional[str] = None
+    post_id: int
+    content: str
     sentiment: Optional[str] = None
     confidence: Optional[float] = None
     positive: Optional[float] = None
@@ -18,12 +17,11 @@ class PostOut(BaseModel):
     negative: Optional[float] = None
     created_at: datetime
     user: UserOut
-    comments: list[CommentOut] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
 
 
-class PostCreateResponse(BaseModel):
-    post: PostOut
+class CommentCreateResponse(BaseModel):
+    comment: CommentOut
     prediction: dict

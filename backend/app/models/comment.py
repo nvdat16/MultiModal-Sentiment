@@ -6,13 +6,13 @@ from sqlalchemy.orm import relationship
 from app.db.base import Base
 
 
-class Post(Base):
-    __tablename__ = "posts"
+class Comment(Base):
+    __tablename__ = "comments"
 
     id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    content = Column(Text, nullable=True)
-    image_url = Column(String(500), nullable=True)
+    content = Column(Text, nullable=False)
     sentiment = Column(String(50), nullable=True)
     confidence = Column(Float, nullable=True)
     positive = Column(Float, nullable=True)
@@ -21,5 +21,5 @@ class Post(Base):
     prediction_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    user = relationship("User", back_populates="posts")
-    comments = relationship("Comment", back_populates="post", cascade="all, delete-orphan", order_by="Comment.created_at.asc()")
+    post = relationship("Post", back_populates="comments")
+    user = relationship("User", back_populates="comments")

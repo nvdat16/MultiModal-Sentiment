@@ -173,7 +173,9 @@ class SentimentDataset(TorchDataset):
 
         self.image_transform = transforms.Compose(
             [
-                transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+                transforms.RandomResizedCrop(IMAGE_SIZE, scale=(0.85, 1.0)),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.02),
                 transforms.ToTensor(),
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
             ]
@@ -182,6 +184,7 @@ class SentimentDataset(TorchDataset):
             [
                 transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
                 transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
             ]
         )
 

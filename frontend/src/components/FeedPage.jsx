@@ -38,8 +38,8 @@ export default function FeedPage({ token, user, onLogout }) {
     <>
       <nav className="top-nav">
         <div className="nav-inner">
-          <div className="brand">TASTE.</div>
-          <div className="search-box">🔎 <input placeholder="Tìm kiếm bài viết, dataset..." /></div>
+          <div className="brand">Twitter.</div>
+          <div className="search-box">🔎 <input placeholder="Tìm kiếm bài viết..." /></div>
           <div className="nav-user">
             <button onClick={handleLogout}>Đăng xuất</button>
             <img src={avatar} alt="avatar" />
@@ -51,7 +51,6 @@ export default function FeedPage({ token, user, onLogout }) {
         <aside className="left-sidebar">
           <div className="side-item"><img src={avatar} alt="avatar" /><b>{user?.name}</b></div>
           <div className="side-item"><span>📚</span> Thư viện bài viết</div>
-          <div className="side-item"><span>🧪</span> AI Lab (Model Demo)</div>
         </aside>
 
         <section className="feed-column">
@@ -63,19 +62,16 @@ export default function FeedPage({ token, user, onLogout }) {
           {loading && <div className="empty-card">Đang tải bài viết...</div>}
           {error && <div className="error-card">{error}</div>}
           {!loading && !error && posts.length === 0 && <div className="empty-card">Chưa có bài viết nào.</div>}
-          {!loading && !error && posts.map((post) => <PostCard key={post.id} post={post} />)}
+          {!loading && !error && posts.map((post) => <PostCard key={post.id} post={post} token={token} />)}
         </section>
 
         <aside className="right-sidebar">
           <div className="info-card">
             <h4>Thông tin đồ án</h4>
             <b>Đồ án 2</b>
+            <span>Họ tên: Nguyễn Văn Đạt</span>
             <span>MSSV: 12423061</span>
-            <span>Nhóm 1 - 12423TN</span>
-          </div>
-          <div className="info-card">
-            <h4>Backend</h4>
-            <span>FastAPI + MySQL + Colab/ngrok model API</span>
+            <span>Lớp: 12423TN</span>
           </div>
         </aside>
       </main>

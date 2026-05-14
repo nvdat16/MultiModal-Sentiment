@@ -31,9 +31,8 @@ export default function AuthPage({ onAuthenticated }) {
   return (
     <main className="auth-page">
       <section className="auth-hero">
-        <div className="brand-xl">TASTE.</div>
+        <div className="brand-xl">Twitter.</div>
         <h1>Social feed tích hợp Multimodal Sentiment AI</h1>
-        <p>Đăng bài bằng text và hình ảnh, backend FastAPI gọi model sentiment và lưu tài khoản, bài đăng vào MySQL.</p>
       </section>
 
       <section className="auth-card">

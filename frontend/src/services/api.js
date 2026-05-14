@@ -59,6 +59,22 @@ export async function createPost(token, formData) {
   return parseResponse(response)
 }
 
+export async function getPostComments(token, postId, onlyPositive = true) {
+  const response = await fetch(`${API_BASE}/posts/${postId}/comments?only_positive=${onlyPositive}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return parseResponse(response)
+}
+
+export async function createComment(token, postId, formData) {
+  const response = await fetch(`${API_BASE}/posts/${postId}/comments`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  })
+  return parseResponse(response)
+}
+
 export function getImageUrl(imageUrl) {
   if (!imageUrl) return ''
   if (imageUrl.startsWith('http')) return imageUrl
