@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.config import MAX_UPLOAD_SIZE
 from app.models.user import User
 from app.repositories.comment_repo import create_comment, get_comments_by_post
 from app.repositories.post_repo import get_post_by_id
@@ -22,6 +23,12 @@ async def create_user_comment(
     post = get_post_by_id(db, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Bài viết không tồn tại")
+
+    if file is not None:
+        file_content = await file.read()
+        if len(file_content) > MAX_UPLOAD_SIZE:
+            raise HTTPException(status_code=413, detail="Ảnh vượt quá dung lượng tối đa 5MB")
+        file.file.seek(0)
 
     prediction = await predict_sentiment(content.strip(), file)
     comment = create_comment(

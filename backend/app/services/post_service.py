@@ -6,7 +6,7 @@ import requests
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.config import TARGET_API_URL, UPLOAD_DIR
+from app.core.config import MAX_UPLOAD_SIZE, TARGET_API_URL, UPLOAD_DIR
 from app.models.user import User
 from app.repositories.post_repo import create_post, get_recent_posts
 
@@ -21,6 +21,8 @@ async def call_prediction_api(text: Optional[str], file: Optional[UploadFile]) -
 
     if file is not None:
         file_content = await file.read()
+        if len(file_content) > MAX_UPLOAD_SIZE:
+            raise HTTPException(status_code=413, detail="Ảnh vượt quá dung lượng tối đa 5MB")
         extension = Path(file.filename or "image.jpg").suffix or ".jpg"
         filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}{extension}"
         image_path = UPLOAD_DIR / filename

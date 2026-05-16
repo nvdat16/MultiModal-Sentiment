@@ -7,3 +7,4 @@ PyMySQL
 python-jose[cryptography]
 pydantic
 pydantic[email]
+python-dotenv
