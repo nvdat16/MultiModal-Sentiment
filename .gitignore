@@ -1,5 +1,4 @@
 test.py
-main.py
 pretrained_models/Image/best_image.pth
 pretrained_models/MultiModal/best_multimodal.pth
 pretrained_models/Text/best_text.pth
